@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import worker from './dist/server/index.js';
+import {authenticate} from './src/auth.mjs';
+import {handleMcp} from './src/mcp.mjs';
+let n=0;const eq=(a,b)=>{assert.equal(a,b);n++};
+const request = headers => new Request('https://example.test/mcp',{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'get_workflow_examples'}})});
+eq(await authenticate(request({authorization:'Bearer abc'}),'abc'),true);
+eq(await authenticate(request({authorization:'Bearer wrong'}),'abc'),false);
+eq(await authenticate(request({authorization:'Bearer abc'}),undefined),false);
+eq(await authenticate(request({authorization:'Bearer '+ 'x'.repeat(8193)}),'abc'),false);
+eq((await worker.fetch(request({'oai-authenticated-user-id':'spoof'}))).status,401);
+eq((await worker.fetch(request({authorization:'Bearer abc'}))).status,401);
+eq((await worker.fetch(request({authorization:'Bearer wrong'}),{AI_COST_LAB_MCP_TOKEN:'abc'})).status,401);
+eq((await worker.fetch(request({authorization:'Bearer abc'}),{AI_COST_LAB_MCP_TOKEN:'abc'})).status,200);
+eq((await handleMcp(request({'oai-authenticated-user-id':'spoof'}))).status,401);
+eq((await handleMcp(request({}),{authenticated:true})).status,200);
+console.log(`${n} portable authentication assertions passed`);

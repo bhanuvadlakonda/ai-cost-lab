@@ -1,0 +1,16 @@
+{
+  "name": "ai-cost-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "npm run build && node test.mjs && node test-workflows.mjs && node test-mcp.mjs && node test-costs.mjs && node test-infrastructure.mjs && node test-portable.mjs",
+    "start": "node server.mjs"
+  },
+  "description": "Transparent model API and workflow cost estimates with illustrative infrastructure budgets",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

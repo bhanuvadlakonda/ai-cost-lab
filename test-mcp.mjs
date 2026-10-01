@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import worker from './dist/server/index.js';import {defaults,calculate} from './dist/calc.mjs';import {models} from './dist/models.mjs';import {callTool,toolDefinitions} from './src/mcp.mjs';
+let n=0;const eq=(a,b)=>{assert.deepEqual(a,b);n++};const ok=a=>{assert.ok(a);n++};
+const workload={input:2000,cached:0,output:350,calls:1,volume:10000};const args={model_ids:[models[0].id,models[2].id],workload};
+const rpc=async (method,params,auth=true,id=1)=>worker.fetch(new Request('https://example.test/mcp',{method:'POST',headers:{'content-type':'application/json',...(auth?{authorization:'Bearer test-only-token'}:{})},body:JSON.stringify({jsonrpc:'2.0',id,method,params})}),{AI_COST_LAB_MCP_TOKEN:'test-only-token'});
+let r=await rpc('initialize',{protocolVersion:'2025-06-18'},false);eq(r.status,200);let j=await r.json();eq(j.result.protocolVersion,'2025-06-18');eq(j.result.serverInfo.name,'ai-cost-lab');
+r=await rpc('tools/list',{},false);j=await r.json();eq(j.result.tools.length,4);for(const t of j.result.tools){eq(t.annotations.readOnlyHint,true);eq(t.annotations.openWorldHint,false);eq(t.inputSchema.additionalProperties,false);}
+eq((await rpc('tools/call',{name:'compare_model_api_costs',arguments:args},false)).status,401);
+r=await rpc('tools/call',{name:'compare_model_api_costs',arguments:args});j=await r.json();eq(j.result.isError,false);eq(j.result.structuredContent.results[0].monthly_api_subtotal_usd,calculate({...defaults,...workload},{...models[0],success:80}).apiMonthly);eq(j.result.structuredContent.price_checked_utc,'2026-10-01');eq(j.result.structuredContent.currency,'USD');ok(j.result.content[0].text.includes('subtotal'));ok(j.result.structuredContent.sources[0].source_url.startsWith('https://'));
+const flow={models:[{model_id:models[0].id,success_percent:80}],workload:{...defaults}};r=await rpc('tools/call',{name:'estimate_workflow_cost',arguments:flow});j=await r.json();eq(j.result.structuredContent.results[0].costPerSuccess,calculate(defaults,{...models[0],success:80}).costPerSuccess);
+for(const bad of [{...args,unexpected:'text'},{...args,model_ids:['unknown']},{...args,model_ids:[]},{...args,model_ids:[models[0].id,models[0].id]},{...args,workload:{...workload,input:-1}},{...args,workload:{...workload,cached:9999}},{...args,workload:{...workload,calls:1.5}},{...args,workload:{...workload,output:'350'}},{...args,workload:{...workload,customer_text:'Not accepted'}},{...args,workload:null}]){r=await rpc('tools/call',{name:'compare_model_api_costs',arguments:bad});eq((await r.json()).result.isError,true);}
+for(const value of [NaN,Infinity,-Infinity]){assert.throws(()=>callTool('compare_model_api_costs',{...args,workload:{...workload,input:value}}));n++;}
+r=await rpc('tools/call',{name:'estimate_workflow_cost',arguments:{...flow,models:[{model_id:models[0].id,success_percent:101}]}});eq((await r.json()).result.isError,true);
+r=await rpc('tools/call',{name:'estimate_workflow_cost',arguments:{...flow,models:[{model_id:models[0].id,success_percent:0}],workload:{...defaults,escalate:0}}});eq((await r.json()).result.structuredContent.results[0].costPerSuccess,null);
+r=await rpc('tools/call',{name:'get_workflow_examples',arguments:{}});eq((await r.json()).result.structuredContent.examples.length,4);
+r=await rpc('tools/call',{name:'get_workflow_examples',arguments:{example_id:'brief'}});j=await r.json();eq(j.result.structuredContent.examples[0].totals.input,4000);eq(j.result.structuredContent.examples[0].calculator_token_inputs.input,2000);
+eq((await (await rpc('bogus',{})).json()).error.code,-32601);eq((await (await rpc('tools/call',{name:'bogus',arguments:{}})).json()).result.isError,true);
+r=await worker.fetch(new Request('https://example.test/mcp',{method:'POST',headers:{'content-type':'application/json'},body:'{'}));eq(r.status,400);
+r=await worker.fetch(new Request('https://example.test/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})}));eq(r.status,202);
+r=await worker.fetch(new Request('https://example.test/mcp',{method:'POST',headers:{'content-type':'application/json'},body:' '.repeat(65537)}));eq(r.status,413);
+eq((await worker.fetch(new Request('https://example.test/mcp'))).status,405);
+for(const path of ['/','/index.html','/style.css','/app.mjs','/calc.mjs','/models.mjs','/workflows.mjs','/favicon.svg']){r=await worker.fetch(new Request('https://example.test'+path));eq(r.status,200);eq(await r.text(),readFileSync('dist/'+(path==='/'?'index.html':path.slice(1)),'utf8'));}
+eq((await worker.fetch(new Request('https://example.test/server/index.js'))).status,404);eq((await worker.fetch(new Request('https://example.test/.env'))).status,404);eq((await worker.fetch(new Request('https://example.test/',{method:'HEAD'}))).status,200);
+r=await rpc('tools/call',{name:'get_workflow_examples'});eq((await r.json()).result.structuredContent.examples.length,4);
+r=await rpc('tools/call',{name:'compare_model_api_costs'});eq((await r.json()).result.isError,true);
+console.log(`${n} MCP/auth/validation/static-route assertions passed (in-process Worker tests; no auth bypass on deployed service)`);
