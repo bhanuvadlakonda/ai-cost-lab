@@ -80,7 +80,7 @@ Gemini 3.8 Flash rates in this snapshot are promotional through 2026-12-31; upda
 - `src/mcp.mjs`, `src/auth.mjs`: protocol, tools and adapter authentication
 - `build.mjs`: bundles an explicit frontend allowlist and server modules
 - `server.mjs`: Node HTTP adapter
-- `test*.mjs`: 371 assertions covering math, bounds, completeness, workflow normalization, UI events, MCP parity and authentication
+- `test*.mjs`: 391 assertions covering math, bounds, completeness, workflow normalization, UI events, MCP parity and authentication
 
 UI tests use a simulated DOM; they are not a substitute for browser, accessibility or production deployment testing. CI runs the same dependency-free suite on Node 22. No dependency lockfile is needed because no packages are installed. The source is an initial standalone export; hosting history and private configuration are intentionally absent.
 
@@ -91,3 +91,7 @@ Run `npm test` before proposing changes. Include tests for calculation changes a
 ## License and attribution
 
 MIT © 2026 Bhanu Vadlakonda. See [LICENSE](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency and source attribution notes.
+
+### Document-size teaching examples
+
+The infrastructure cards translate the existing embedded-token budget into approximate ten-page PDFs or 1,000-word articles. Assumptions are visible: 500 English words/page, roughly four tokens per three words, and 25% extra for repeated text between passages. These alternative equivalents are not measured document sizes, a universal language conversion or a change to the billed-token calculation. Scanned pages, complex tables and images can require extra work that remains unpriced. The whole library is prepared for search initially; each question sends only selected relevant passages to the answering model.

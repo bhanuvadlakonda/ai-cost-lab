@@ -6,3 +6,9 @@ const low=infrastructureScenario('small-pilot',{dbRam:0,dbCpu:0,appRam:0,appCpu:
 for(const overrides of [{chunks:-1},{ramRate:Infinity},{labourHours:NaN},{unknown:4}]){assert.throws(()=>infrastructureScenario('small-pilot',overrides));n++;}assert.throws(()=>callTool('get_infrastructure_scenarios',{overrides:{chunks:1}}));n++;eq(callTool('get_infrastructure_scenarios',{}).structuredContent.scenarios.length,3);const modified=infrastructureScenario('small-pilot',{tokensPerChunk:1000,embeddingRate:.04});near(modified.additional_costs.setupEmbeddings,.4);near(modified.additional_costs.queryEmbeddings,.000004);
 const huge=infrastructureScenario('small-pilot',{storageGb:1e9,diskRate:2});eq(huge.minimum_mapping_exact,true);eq(huge.can_load,false);ok(huge.derived_cost_errors.length>0);
 console.log(`${n} infrastructure scenario/pricing/minimum/MCP parity assertions passed`);
+
+// Document equivalents explain existing totals without changing billed tokens.
+const {documentEquivalents}=await import('./dist/infrastructure.mjs');
+for(const [chunks,pdfs,articles] of [[10000,600,3000],[100000,6000,30000],[1000000,60000,300000]]){const d=documentEquivalents({chunks,tokensPerChunk:500});assert.equal(d.approx_pdfs,pdfs);assert.equal(d.approx_articles,articles);assert.equal(d.embedded_tokens,chunks*500);}
+assert.equal(documentEquivalents({chunks:0,tokensPerChunk:500}).approx_pdfs,0);
+console.log('10 document-equivalent teaching assumptions passed');
